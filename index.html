@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>L'albero delle domande</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* L'albero delle domande: quiz a scelta multipla per qualsiasi materia.
+   Ogni risposta giusta aggiunge un addobbo all'albero 3D; all'obiettivo arriva la stella.
+   L'insegnante gestisce raccolte di domande, impostazioni e link da condividere. */
+:root{color-scheme:dark;--bg1:#17345e;--bg2:#0b1f3a;--bg3:#06122a;--fg:#eef4ff;--sub:#c4d3ee;--chip:#ffffff14;--line:#ffffff40;--figbg:radial-gradient(90% 70% at 50% 85%,#2b5788 0%,#132c52 55%,#0a1a33 100%);--pine:#1f7a4a;--gold:#f2c14e;--red:#d7263d;--paper:#fffaf0;--ink:#1b2233;--muted:#4d5568;--edge:#e4dac3}
+body[data-tema=primavera]{color-scheme:light;--bg1:#d9f1ff;--bg2:#a9daf7;--bg3:#7cc0ea;--fg:#0f2a44;--sub:#24476b;--chip:#ffffff66;--line:#0f2a4440;--figbg:radial-gradient(90% 70% at 50% 85%,#e8fbff 0%,#bfe6fb 55%,#8fcdf0 100%);--gold:#e08a00}
+body[data-tema=spazio]{--bg1:#2a1b4d;--bg2:#140c2e;--bg3:#07051a;--sub:#cfc4ee;--figbg:radial-gradient(90% 70% at 50% 85%,#3b2a6e 0%,#1b1240 55%,#0a0720 100%);--gold:#ffd166}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;min-height:100vh;background:radial-gradient(120% 80% at 50% 0%,var(--bg1) 0%,var(--bg2) 45%,var(--bg3) 100%);color:var(--fg);font:17px/1.55 Nunito,system-ui,sans-serif;overflow-x:clip;transition:background .4s}
+header{max-width:1180px;margin:0 auto;padding:22px max(4vw,16px) 6px;display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px 24px}
+h1{font:700 clamp(30px,4.6vw,46px)/1.05 Fredoka,sans-serif;margin:0;text-wrap:balance}
+h1 span{color:var(--gold)}
+.sub{margin:6px 0 0;color:var(--sub);font-size:16px}
+.hud{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center}
+.meter{display:grid;gap:4px;min-width:180px}
+.meter b{font:600 15px Fredoka,sans-serif;color:var(--sub);display:flex;justify-content:space-between;gap:12px}
+.meter b em{font-style:normal;color:var(--gold);white-space:nowrap}
+.bar{height:14px;border-radius:99px;background:var(--chip);overflow:hidden;box-shadow:inset 0 0 0 1px var(--line)}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#e0a91f,#f2c14e);border-radius:99px;transition:width .5s cubic-bezier(.3,1.4,.5,1)}
+.lives{display:flex;flex-wrap:wrap;gap:6px}
+.lives span{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);transition:background .3s,transform .3s}
+.lives span.x{background:var(--red);border-color:var(--red);transform:scale(1.1)}
+.stage{position:relative;max-width:1180px;margin:0 auto;padding:14px max(4vw,16px) 40px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:24px;align-items:start}
+.fig{position:relative;height:clamp(360px,68vh,620px);border-radius:28px;overflow:hidden;background:var(--figbg);box-shadow:inset 0 0 0 1px #ffffff14,0 20px 50px #00000040}
+.fig canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.fig .nogl{position:absolute;inset:auto 16px 16px;font-size:14px;color:var(--sub)}
+.card{background:var(--paper);color:var(--ink);border-radius:24px;padding:clamp(20px,3vw,30px);box-shadow:0 20px 50px #00000040;position:relative}
+.tag{display:inline-block;font:600 14px Fredoka,sans-serif;color:#7a5a12;background:#fbe7b5;border-radius:99px;padding:3px 12px}
+.q{font:600 clamp(21px,2.4vw,26px)/1.25 Fredoka,sans-serif;margin:12px 0 18px;text-wrap:balance;white-space:pre-line}
+.opts{display:grid;gap:10px}
+.opts button{font:700 18px Nunito,sans-serif;text-align:left;color:var(--ink);background:#fff;border:2px solid var(--edge);border-radius:16px;min-height:56px;padding:12px 18px;cursor:pointer;transition:transform .12s,border-color .2s,background .2s;display:flex;gap:12px;align-items:center}
+.opts button kbd{flex:none;font:600 14px Fredoka,sans-serif;width:26px;height:26px;display:grid;place-items:center;border-radius:8px;background:#f3ecdb;color:#7a5a12}
+.opts button:hover:not(:disabled){border-color:var(--pine);transform:translateY(-1px)}
+.opts button:focus-visible,.next:focus-visible,.again:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.opts button:disabled{cursor:default}
+.opts button.ok{background:#e3f5e9;border-color:#2e9e5b;color:#145c33}
+.opts button.no{background:#fde4e7;border-color:var(--red);color:#8c1023}
+.fb{min-height:52px;margin:16px 0 0;font-size:17px}
+.fb strong{font-family:Fredoka,sans-serif;font-weight:600}
+.fb.good strong{color:#1f8a4c}.fb.bad strong{color:var(--red)}
+.next{margin-top:12px;font:600 18px Fredoka,sans-serif;color:#fff;background:var(--pine);border:0;border-radius:14px;min-height:50px;padding:10px 26px;cursor:pointer}
+.next[hidden]{display:none}
+.empty{color:var(--muted)}
+.over{position:absolute;inset:14px max(4vw,16px) 40px;display:grid;place-items:center;background:#06122ad9;border-radius:28px;backdrop-filter:blur(3px);z-index:5;padding:20px}
+.over[hidden]{display:none}
+.box{max-width:520px;width:100%;max-height:100%;overflow:auto;text-align:center;background:var(--paper);color:var(--ink);border-radius:24px;padding:30px 26px}
+.box h2{font:700 clamp(30px,4vw,40px)/1.05 Fredoka,sans-serif;margin:0 0 10px}
+.box p{margin:0 0 16px}
+.review{text-align:left;margin:0 0 20px;padding:14px 16px;background:#fff;border:2px solid var(--edge);border-radius:16px}
+.review h3{font:600 18px Fredoka,sans-serif;margin:0 0 8px}
+.review ol{margin:0;padding-left:20px;display:grid;gap:8px;font-size:15px}
+.review b{color:#1f8a4c}
+.again{font:600 19px Fredoka,sans-serif;color:var(--ink);background:var(--gold);border:0;border-radius:14px;min-height:52px;padding:10px 30px;cursor:pointer}
+.tbtn{font:600 16px Fredoka,sans-serif;color:var(--fg);background:var(--chip);border:2px solid var(--line);border-radius:14px;min-height:46px;padding:8px 16px;cursor:pointer}
+.tbtn:hover,.tbtn[aria-expanded=true]{border-color:var(--gold);color:var(--gold)}
+.tbtn[hidden]{display:none}
+
+/* ---------- Pannello insegnante ---------- */
+.teacher{max-width:1180px;margin:8px auto 0;padding:0 max(4vw,16px)}
+.teacher[hidden]{display:none}
+.tin{background:var(--paper);color:var(--ink);border-radius:24px;padding:22px clamp(18px,3vw,30px);box-shadow:0 20px 50px #00000040}
+.thead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
+.tin h2{font:700 26px/1.1 Fredoka,sans-serif;margin:0}
+.tin h3{font:600 19px/1.2 Fredoka,sans-serif;margin:18px 0 6px}
+.tin p{margin:0 0 10px;max-width:75ch}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0 14px;border-bottom:2px solid var(--edge)}
+.tabs button{font:600 16px Fredoka,sans-serif;color:var(--muted);background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-2px;padding:8px 12px;cursor:pointer}
+.tabs button[aria-selected=true]{color:var(--pine);border-bottom-color:var(--pine)}
+.pane[hidden]{display:none}
+.cols code{font:700 15px Nunito,sans-serif;background:#fbe7b5;color:#5c430c;border-radius:6px;padding:2px 7px;white-space:nowrap}
+.cols{line-height:2}
+.note{font-size:15px;color:var(--muted)}
+.trow{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 6px;align-items:center}
+.file{position:relative;display:inline-flex;align-items:center;font:600 16px Fredoka,sans-serif;color:#fff;background:var(--pine);border-radius:14px;min-height:46px;padding:8px 18px;cursor:pointer}
+.file input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:16px}
+.file:focus-within,.tbtn:focus-visible,.tsec:focus-visible,.tpri:focus-visible,.tabs button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.tsec,.tpri{font:600 16px Fredoka,sans-serif;color:var(--ink);background:#fff;border:2px solid var(--edge);border-radius:14px;min-height:46px;padding:8px 16px;cursor:pointer}
+.tsec:hover{border-color:var(--pine)}
+.tpri{background:var(--pine);border-color:var(--pine);color:#fff}
+.tsec.sm{min-height:38px;padding:4px 12px;font-size:15px}
+.tsec.danger:hover{border-color:var(--red);color:var(--red)}
+.tstat{font-weight:700;min-height:26px;margin-top:10px!important}
+.tstat.err{color:var(--red)}.tstat.good{color:#1f8a4c}
+.list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.list li{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:#fff;border:2px solid var(--edge);border-radius:16px;padding:10px 14px}
+.list li.on{border-color:var(--pine);background:#eef8f1}
+.list .grow{flex:1 1 240px}
+.list .grow strong{display:block;font-family:Fredoka,sans-serif;font-weight:600}
+.list .grow small{color:var(--muted);font-size:14px}
+.pill{font:600 13px Fredoka,sans-serif;color:#145c33;background:#d5f0de;border-radius:99px;padding:2px 10px}
+.qlist li{align-items:flex-start}
+.qlist .n{font:600 15px Fredoka,sans-serif;color:var(--muted);min-width:2ch}
+.qlist .ans{font-size:14px;color:var(--muted)}
+.qlist .ans b{color:#1f8a4c}
+.form{display:grid;gap:12px;background:#fff;border:2px solid var(--pine);border-radius:16px;padding:16px;margin:10px 0}
+.form[hidden]{display:none}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px 18px}
+.fld{display:grid;gap:4px;font-weight:700;font-size:15px}
+.fld small{font-weight:400;color:var(--muted)}
+.fld input,.fld textarea,.fld select{font:16px Nunito,sans-serif;color:var(--ink);background:#fff;border:2px solid var(--edge);border-radius:12px;padding:9px 12px;width:100%}
+.fld textarea{resize:vertical;min-height:90px}
+.fld input:focus,.fld textarea:focus,.fld select:focus{outline:none;border-color:var(--pine)}
+.chk{display:flex;gap:10px;align-items:center;font-weight:700;font-size:15px}
+.chk input{width:20px;height:20px;accent-color:var(--pine)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace!important;font-size:14px!important;min-height:260px!important;white-space:pre;overflow-x:auto}
+details{margin-top:14px}
+summary{cursor:pointer;font:600 16px Fredoka,sans-serif;color:var(--pine)}
+.shake{animation:sh .45s}
+@keyframes sh{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+@media(max-width:860px){.stage{grid-template-columns:minmax(0,1fr)}.fig{height:clamp(300px,52vh,440px)}}
+@media(prefers-reduced-motion:reduce){.shake{animation:none}.bar i{transition:none}}
+</style>
+</head>
+<body data-tema="natale">
+<header>
+  <div>
+    <h1 id="title"></h1>
+    <p class="sub" id="subtitle"></p>
+  </div>
+  <div class="hud">
+    <div class="meter"><b><span id="cntLabel">Addobbi</span> <em id="cnt">0 / 25</em></b><div class="bar"><i id="bar"></i></div></div>
+    <div class="meter" id="errMeter"><b>Errori <em id="ecnt">0 / 5</em></b><div class="lives" id="lives"></div></div>
+    <button class="tbtn" id="tOpen" aria-expanded="false" aria-controls="teacher">Pannello insegnante</button>
+  </div>
+</header>
+
+<section class="teacher" id="teacher" hidden>
+  <div class="tin">
+    <div class="thead">
+      <h2>Pannello insegnante</h2>
+      <button class="tpri" id="tClose">Chiudi e gioca</button>
+    </div>
+    <div class="tabs" role="tablist">
+      <button role="tab" data-tab="sets" aria-selected="true">Raccolte</button>
+      <button role="tab" data-tab="qs" aria-selected="false">Domande</button>
+      <button role="tab" data-tab="opts" aria-selected="false">Impostazioni</button>
+      <button role="tab" data-tab="share" aria-selected="false">Condividi</button>
+    </div>
+
+    <!-- Raccolte -->
+    <div class="pane" id="p-sets">
+      <p>Una <strong>raccolta</strong> è un insieme di domande con le sue impostazioni (titolo, obiettivo, tema). Puoi prepararne quante vuoi, per materie e classi diverse, e scegliere con quale giocare. Tutto resta salvato in questo browser.</p>
+      <ul class="list" id="setList"></ul>
+      <div class="trow">
+        <button class="tsec" id="sNew">+ Nuova raccolta vuota</button>
+        <label class="file">Importa da file CSV<input type="file" id="sFile" accept=".csv,.tsv,.txt,text/csv"></label>
+        <button class="tsec" id="sTpl">Scarica il modello CSV</button>
+        <button class="tsec" id="sDemo">Ripristina la raccolta di esempio</button>
+      </div>
+      <details>
+        <summary>Come preparare un file CSV</summary>
+        <p>Da Excel, LibreOffice o Fogli Google salva il foglio come <strong>CSV</strong>, con <strong>una domanda per riga</strong> e queste colonne (separate da punto e virgola, virgola o tabulazione):</p>
+        <p class="cols"><code>domanda</code> · <code>risposta_giusta</code> · <code>sbagliata_1</code> · <code>sbagliata_2</code> · <code>sbagliata_3</code> · <code>spiegazione</code></p>
+        <p class="note">Basta almeno una risposta sbagliata; la spiegazione è facoltativa. Se tieni la prima riga con i nomi delle colonne puoi aggiungere altre colonne <code>sbagliata_4</code>, <code>sbagliata_5</code>… Le coppie Vero/Falso e Sì/No restano sempre nello stesso ordine.</p>
+      </details>
+    </div>
+
+    <!-- Domande -->
+    <div class="pane" id="p-qs" hidden>
+      <p id="qInfo"></p>
+      <div class="trow">
+        <button class="tpri" id="qAdd">+ Nuova domanda</button>
+        <button class="tsec" id="qBulk">Modifica tutto come testo</button>
+        <button class="tsec" id="qExport">Scarica come CSV</button>
+      </div>
+      <form class="form" id="qForm" hidden>
+        <label class="fld">Domanda<textarea id="fQ" rows="2" required></textarea></label>
+        <div class="grid2">
+          <label class="fld">Risposta giusta<input id="fGood" required></label>
+          <label class="fld">Risposte sbagliate <small>una per riga, almeno una</small><textarea id="fWrong" rows="3" required></textarea></label>
+        </div>
+        <label class="fld">Spiegazione <small>facoltativa: compare dopo la risposta</small><input id="fE"></label>
+        <div class="trow" style="margin:0">
+          <button class="tpri" type="submit" id="fSave">Salva domanda</button>
+          <button class="tsec" type="button" id="fCancel">Annulla</button>
+        </div>
+      </form>
+      <div class="form" id="bulk" hidden>
+        <label class="fld">Tutte le domande in formato CSV <small>una riga per domanda, colonne separate da punto e virgola. Puoi incollare direttamente da un foglio di calcolo.</small><textarea id="bulkTxt" class="mono" spellcheck="false"></textarea></label>
+        <div class="trow" style="margin:0">
+          <button class="tpri" type="button" id="bApply">Sostituisci le domande</button>
+          <button class="tsec" type="button" id="bAppend">Aggiungi in fondo</button>
+          <button class="tsec" type="button" id="bCancel">Annulla</button>
+        </div>
+      </div>
+      <ol class="list qlist" id="qList"></ol>
+    </div>
+
+    <!-- Impostazioni -->
+    <form class="pane" id="p-opts" hidden>
+      <div class="grid2">
+        <label class="fld">Nome della raccolta <small>lo vedi solo tu, nell'elenco</small><input id="oName"></label>
+        <label class="fld">Titolo del gioco <small>l'ultima parola viene evidenziata</small><input id="oTitle"></label>
+      </div>
+      <label class="fld" style="margin-top:12px">Sottotitolo<input id="oSub"></label>
+      <div class="grid2" style="margin-top:12px">
+        <label class="fld">Risposte giuste per vincere <small>da 5 a 50: l'ultima mette la stella</small><input id="oGoal" type="number" min="5" max="50" step="1"></label>
+        <label class="fld">Errori concessi <small>0 = nessun limite</small><input id="oErr" type="number" min="0" max="15" step="1"></label>
+        <label class="fld">Tema dell'albero<select id="oTheme">
+          <option value="natale">Natale – neve e palline</option>
+          <option value="primavera">Primavera – fiori e petali</option>
+          <option value="spazio">Spazio – pianeti e stelle</option>
+        </select></label>
+        <label class="fld">Ordine delle domande<select id="oOrder">
+          <option value="random">Casuale</option>
+          <option value="seq">Come nell'elenco</option>
+        </select></label>
+      </div>
+      <div class="trow">
+        <label class="chk"><input type="checkbox" id="oShuf"> Mescola le risposte</label>
+        <label class="chk"><input type="checkbox" id="oKeys"> Mostra i tasti 1, 2, 3… accanto alle risposte</label>
+      </div>
+      <p class="note">Le modifiche si salvano da sole e fanno ripartire la partita.</p>
+    </form>
+
+    <!-- Condividi -->
+    <div class="pane" id="p-share" hidden>
+      <h3>Link alla raccolta</h3>
+      <p>Crea un link che contiene la raccolta in uso: chi lo apre gioca subito con le tue domande, su qualsiasi dispositivo, senza file da scaricare.</p>
+      <label class="chk"><input type="checkbox" id="shLock" checked> Modalità studente: nascondi il pannello insegnante</label>
+      <div class="trow">
+        <button class="tpri" id="shMake">Crea il link</button>
+        <button class="tsec" id="shCopy" disabled>Copia</button>
+      </div>
+      <label class="fld"><span class="note" id="shInfo"></span><input id="shUrl" readonly placeholder="Il link comparirà qui"></label>
+      <h3>Collegare un foglio Google</h3>
+      <p>In Fogli Google scegli <em>File → Condividi → Pubblica sul web</em>, seleziona il foglio e il formato <strong>CSV</strong>, poi incolla qui l'indirizzo. Il gioco leggerà sempre la versione più recente del foglio.</p>
+      <label class="fld">Indirizzo del CSV pubblicato<input id="shCsv" placeholder="https://docs.google.com/spreadsheets/d/e/…/pub?output=csv"></label>
+      <div class="trow"><button class="tsec" id="shCsvMake">Crea il link dal foglio</button></div>
+    </div>
+
+    <p class="tstat" id="tStat" role="status"></p>
+  </div>
+</section>
+
+<main class="stage">
+  <div class="fig" id="fig" aria-label="Albero in 3D che ruota e si riempie di addobbi"></div>
+  <section class="card" id="card" aria-live="polite">
+    <span class="tag" id="tag">Domanda 1</span>
+    <p class="q" id="q"></p>
+    <div class="opts" id="opts"></div>
+    <p class="fb" id="fb"></p>
+    <button class="next" id="next" hidden>Avanti</button>
+  </section>
+  <div class="over" id="over" hidden>
+    <div class="box">
+      <h2 id="ovTitle"></h2>
+      <p id="ovText"></p>
+      <div class="review" id="review" hidden><h3>Da ripassare</h3><ol id="revList"></ol></div>
+      <button class="again" id="again">Gioca ancora</button>
+    </div>
+  </div>
+</main>
+
+<script type="text/plain" id="csvDefault">
+domanda;risposta_giusta;sbagliata_1;sbagliata_2;sbagliata_3;spiegazione
+Nella frase «Il gatto dorme sul divano.» il verbo «dorme» è…;intransitivo;transitivo;;;Dorme… che cosa? Nessuna risposta: l'azione resta nel gatto.
+Nella frase «Marta legge un libro di avventure.» il verbo «legge» è…;transitivo;intransitivo;;;Legge che cosa? Un libro: è il complemento oggetto.
+Nella frase «I bambini corrono nel cortile.» il verbo «corrono» è…;intransitivo;transitivo;;;«Nel cortile» dice dove, non che cosa.
+Nella frase «Il nonno ripara la bicicletta.» il verbo «ripara» è…;transitivo;intransitivo;;;Ripara che cosa? La bicicletta.
+Nella frase «Le foglie cadono in autunno.» il verbo «cadono» è…;intransitivo;transitivo;;;Cadere non ha mai un complemento oggetto.
+Nella frase «Paolo scrive una lettera alla zia.» il verbo «scrive» è…;transitivo;intransitivo;;;Scrive che cosa? Una lettera.
+Nella frase «Il sole tramonta dietro la collina.» il verbo «tramonta» è…;intransitivo;transitivo;;;«Dietro la collina» dice dove: niente complemento oggetto.
+Nella frase «Anna saluta la nonna.» il verbo «saluta» è…;transitivo;intransitivo;;;Saluta chi? La nonna.
+Nella frase «Il bambino piange forte.» il verbo «piange» è…;intransitivo;transitivo;;;«Forte» dice come: l'azione resta nel bambino.
+Nella frase «La lumaca striscia lentamente.» il verbo «striscia» è…;intransitivo;transitivo;;;Striscia… che cosa? Nessuna risposta.
+Nella frase «Tommaso disegna un drago.» il verbo «disegna» è…;transitivo;intransitivo;;;Disegna che cosa? Un drago.
+Nella frase «Le rondini tornano in primavera.» il verbo «tornano» è…;intransitivo;transitivo;;;«In primavera» dice quando, non che cosa.
+Nella frase «Il papà lava la macchina.» il verbo «lava» è…;transitivo;intransitivo;;;Lava che cosa? La macchina.
+Nella frase «L'autobus arriva subito.» il verbo «arriva» è…;intransitivo;transitivo;;;Arrivare è intransitivo.
+Nella frase «La maestra apre la finestra.» il verbo «apre» è…;transitivo;intransitivo;;;Apre che cosa? La finestra.
+Nella frase «Il pallone rotola giù.» il verbo «rotola» è…;intransitivo;transitivo;;;«Giù» dice dove: niente complemento oggetto.
+Nella frase «Il vigile ferma le auto.» il verbo «ferma» è…;transitivo;intransitivo;;;Ferma che cosa? Le auto.
+«La mamma prepara la torta.» Qual è il complemento oggetto?;la torta;la mamma;prepara;Non c'è;Prepara che cosa? La torta.
+«Il treno parte alle otto.» Qual è il complemento oggetto?;Non c'è;alle otto;il treno;;Partire è intransitivo: «alle otto» dice quando.
+«Giulia innaffia i fiori.» Qual è il complemento oggetto?;i fiori;Giulia;innaffia;Non c'è;Innaffia che cosa? I fiori.
+«Noi arriviamo in ritardo.» Qual è il complemento oggetto?;Non c'è;in ritardo;noi;;Arrivare è intransitivo: non ha complemento oggetto.
+«Il cane rosicchia un osso.» Qual è il complemento oggetto?;un osso;il cane;rosicchia;Non c'è;Rosicchia che cosa? Un osso.
+«Elisa dipinge un paesaggio.» Qual è il complemento oggetto?;un paesaggio;Elisa;Non c'è;;Dipinge che cosa? Un paesaggio.
+Trova l'intruso: prendere, comprare, dormire, spedire.;dormire;prendere;comprare;spedire;Dormire è l'unico intransitivo.
+Trova l'intruso: uscire, entrare, nascere, portare.;portare;uscire;entrare;nascere;Portare è l'unico transitivo.
+Trova l'intruso: lavare, asciugare, stirare, sbocciare.;sbocciare;lavare;asciugare;stirare;Sbocciare è l'unico intransitivo.
+Trova l'intruso: arrivare, morire, restare, spostare.;spostare;arrivare;morire;restare;Spostare è l'unico transitivo.
+Vero o falso? «Dormire» è un verbo transitivo.;Falso;Vero;;;Falso: si dorme, ma non si dorme «qualcosa».
+Vero o falso? Il complemento oggetto risponde alla domanda «chi? che cosa?».;Vero;Falso;;;Vero: è la domanda da fare dopo il verbo.
+Vero o falso? In «Il gatto salta sul muretto» c'è un complemento oggetto.;Falso;Vero;;;Falso: «sul muretto» dice dove.
+Vero o falso? Solo i verbi transitivi possono avere la forma passiva.;Vero;Falso;;;Vero: serve un complemento oggetto che diventi soggetto.
+Qual è la forma passiva di «Il cuoco prepara la pasta»?;La pasta è preparata dal cuoco.;Il cuoco è preparato dalla pasta.;La pasta prepara il cuoco.;Non si può fare.;Il complemento oggetto (la pasta) diventa soggetto.
+«Il bambino ride.» Si può volgere al passivo?;No;Sì;;;No: ridere è intransitivo.
+Qual è la forma passiva di «Il vento spinge la barca»?;La barca è spinta dal vento.;Il vento è spinto dalla barca.;Non si può fare.;;La barca diventa soggetto, il vento diventa «dal vento».
+«La neve cade.» Si può volgere al passivo?;No;Sì;;;No: cadere è intransitivo.
+Qual è la forma attiva di «La porta è chiusa dal custode»?;Il custode chiude la porta.;La porta chiude il custode.;Il custode è chiuso dalla porta.;;Chi fa l'azione (il custode) torna soggetto.
+Completa: «Il cane ___ al postino.»;abbaia;nuota;vola;brilla;Il cane abbaia: un verbo intransitivo.
+Completa: «L'aquila ___ sopra le montagne.»;vola;scivola;abbaia;nuota;L'aquila vola: un verbo intransitivo.
+Quale complemento oggetto va bene? «Il pittore dipinge ___.»;un ritratto;in giardino;velocemente;ieri;Dipinge che cosa? Un ritratto.
+Quale frase è corretta?;Il bambino è caduto dalla scala.;Il bambino è caduto la scala.;;;Cadere è intransitivo: serve «dalla».
+Quale frase è corretta?;Marco è andato a scuola.;Marco è andato la scuola.;;;Andare è intransitivo: serve «a».
+Quale frase è corretta?;Il treno parte dalla stazione.;Il treno parte la stazione.;;;Partire è intransitivo: serve «dalla».
+Quale verbo si usa sia con sia senza complemento oggetto?;studiare;nascere;arrivare;;«Studio la storia» e «Studio in camera».
+In quale frase «mangia» ha il complemento oggetto?;Luca mangia una mela.;Luca mangia in fretta.;Luca mangia alle otto.;;Mangia che cosa? Una mela.
+«Sara canta nel coro.» Il verbo ha un complemento oggetto?;No;Sì;;;No: «nel coro» dice dove.
+Che cosa si può sbucciare?;l'arancia;la chitarra;la luce;;Sbucciare è transitivo: si sbuccia l'arancia.
+Che cosa si può suonare?;la chitarra;la lettera;l'arancia;;Suonare la chitarra: la chitarra è il complemento oggetto.
+Quale di questi verbi è transitivo?;costruire;nascere;ridere;cadere;Si costruisce qualcosa: una casa, un castello…
+Quale di questi verbi è intransitivo?;arrivare;chiudere;tagliare;spingere;Si arriva, ma non si arriva «qualcosa».
+Quale di questi verbi è transitivo?;colorare;sorridere;andare;sbadigliare;Si colora qualcosa: un disegno.
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+{
+const $ = id => document.getElementById(id);
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const clamp = (v, lo, hi, d) => { v = parseInt(v, 10); return isNaN(v) ? d : Math.min(hi, Math.max(lo, v)); };
+const uid = () => Math.random().toString(36).slice(2, 10);
+
+/* ---------- Temi ---------- */
+const THEMES = {
+  natale:    { label: 'Addobbi', win: 'Albero completato!', lose: 'gli addobbi sono caduti' },
+  primavera: { label: 'Fiori',   win: 'Albero in fiore!',   lose: 'i fiori sono caduti' },
+  spazio:    { label: 'Pianeti', win: 'Galassia completata!', lose: 'i pianeti sono volati via' }
+};
+const FIXED_PAIRS = [['vero', 'falso'], ['sì', 'no'], ['si', 'no'], ['giusto', 'sbagliato'], ['transitivo', 'intransitivo']];
+
+/* ---------- CSV ---------- */
+function parseCSV(text) {
+  text = text.replace(/^﻿/, '');
+  const first = text.split(/\r?\n/)[0];
+  const count = ch => first.split(ch).length - 1;
+  const sep = count('\t') > count(';') && count('\t') > count(',') ? '\t' : (count(';') >= count(',') ? ';' : ',');
+  const rows = []; let row = [], f = '', inq = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inq) { if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else inq = false; } else f += c; }
+    else if (c === '"' && f === '') inq = true;
+    else if (c === sep) { row.push(f); f = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(f); rows.push(row); row = []; f = ''; }
+    else f += c;
+  }
+  if (f || row.length) { row.push(f); rows.push(row); }
+  return rows;
+}
+function headerMap(h) {
+  const low = h.map(x => x.toLowerCase());
+  const find = re => low.findIndex(x => re.test(x));
+  let good = find(/giust|corrett/); if (good < 0) good = 1;
+  const e = find(/spiegaz|feedback|commento/);
+  let wrong = low.map((x, i) => /sbagliat|errat|distratt/.test(x) ? i : -1).filter(i => i >= 0);
+  if (!wrong.length) wrong = low.map((_, i) => i).filter(i => i !== 0 && i !== good && i !== e);
+  return { q: 0, good, wrong, e };
+}
+function csvToQs(text) {
+  const out = [], bad = []; let map = null, seen = false;
+  parseCSV(text).forEach((r, i) => {
+    r = r.map(x => (x || '').trim());
+    if (!r.some(Boolean)) return;
+    if (!seen) { seen = true; if (/^domand/i.test(r[0])) { map = headerMap(r); return; } }
+    const m = map || { q: 0, good: 1, wrong: [2, 3, 4], e: 5 };
+    const q = r[m.q], good = r[m.good], wrong = m.wrong.map(k => r[k]).filter(Boolean), e = m.e >= 0 ? (r[m.e] || '') : '';
+    if (!q || !good || !wrong.length) { bad.push(i + 1); return; }
+    out.push({ q, good, wrong, e });
+  });
+  return { out, bad };
+}
+function qsToCSV(qs) {
+  const nw = Math.max(3, ...qs.map(x => x.wrong.length));
+  const esc = v => /[;"\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  const head = ['domanda', 'risposta_giusta', ...Array.from({ length: nw }, (_, i) => 'sbagliata_' + (i + 1)), 'spiegazione'];
+  return [head, ...qs.map(x => [x.q, x.good, ...Array.from({ length: nw }, (_, i) => x.wrong[i] || ''), x.e || ''])]
+    .map(r => r.map(v => esc(String(v))).join(';')).join('\n');
+}
+function download(name, text) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/csv;charset=utf-8' }));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+const slug = s => (s || 'domande').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'domande';
+
+/* ---------- Raccolte e salvataggio ---------- */
+const DEFAULT_CSV = $('csvDefault').textContent.trim();
+const STORE = 'albero-domande-v2';
+function newSet(o = {}) {
+  return Object.assign({ id: uid(), name: 'Nuova raccolta', title: "L'albero delle domande", sub: "Ogni risposta giusta fa crescere l'albero.", goal: 25, maxErr: 5, theme: 'natale', order: 'random', shuf: true, keys: true, qs: [] }, o);
+}
+function demoSet() {
+  return newSet({ id: 'esempio', name: 'Verbi transitivi e intransitivi (esempio)', title: "L'albero dei verbi", sub: 'Transitivo o intransitivo? Ogni risposta giusta è un addobbo in più.', qs: csvToQs(DEFAULT_CSV).out });
+}
+function normSet(s) {
+  const d = newSet();
+  const o = Object.assign(d, s);
+  o.goal = clamp(o.goal, 5, 50, 25); o.maxErr = clamp(o.maxErr, 0, 15, 5);
+  if (!THEMES[o.theme]) o.theme = 'natale';
+  o.qs = (Array.isArray(o.qs) ? o.qs : []).filter(x => x && x.q && x.good && Array.isArray(x.wrong) && x.wrong.length);
+  return o;
+}
+let db = (() => {
+  try {
+    const d = JSON.parse(localStorage.getItem(STORE) || 'null');
+    if (d && Array.isArray(d.sets) && d.sets.length) { d.sets = d.sets.map(normSet); return d; }
+  } catch (e) {}
+  const sets = [demoSet()];
+  try { // migrazione dalla versione precedente
+    const old = JSON.parse(localStorage.getItem('albero-verbi-csv') || 'null');
+    if (old && old.csv) { const p = csvToQs(old.csv).out; if (p.length) sets.push(newSet({ name: (old.name || 'File caricato').replace(/[«»]/g, ''), qs: p })); }
+  } catch (e) {}
+  return { sets, active: sets[sets.length - 1].id };
+})();
+let locked = false;
+function save() { try { localStorage.setItem(STORE, JSON.stringify(db)); } catch (e) {} }
+const active = () => db.sets.find(s => s.id === db.active) || db.sets[0];
+
+/* ---------- Albero 3D ---------- */
+const tree = (() => {
+  const fig = $('fig');
+  const stub = { configure(){}, reset(){}, add(){}, shake(){}, strip(cb){ setTimeout(cb, 300); }, win(){} };
+  if (!window.THREE) { fig.innerHTML = '<p class="nogl">L\'albero 3D non si è caricato, ma il gioco funziona lo stesso.</p>'; return stub; }
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); }
+  catch (e) { fig.innerHTML = '<p class="nogl">Questo dispositivo non mostra il 3D, ma il gioco funziona lo stesso.</p>'; return stub; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  fig.appendChild(renderer.domElement);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
+  camera.position.set(0, 2.3, 8); camera.lookAt(0, 1.75, 0);
+  const hemi = new THREE.HemisphereLight(0xcfe0ff, 0x0b1f3a, 0.75); scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xfff1d6, 0.95); sun.position.set(3, 6, 5); scene.add(sun);
+  const warm = new THREE.PointLight(0xffc86b, 0, 6); warm.position.set(0, 3.5, 0.6); scene.add(warm);
+
+  const groundMat = new THREE.MeshStandardMaterial({ color: 0xf3f7ff, roughness: 0.9 });
+  const ground = new THREE.Mesh(new THREE.CylinderGeometry(2.7, 2.9, 0.16, 48), groundMat);
+  ground.position.y = -0.08; scene.add(ground);
+  const g = new THREE.Group(); scene.add(g);
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.23, 0.5, 14), new THREE.MeshStandardMaterial({ color: 0x6b4226, roughness: 0.9 }));
+  trunk.position.y = 0.25; g.add(trunk);
+  const L = [[1.5, 1.5, 1.15], [1.15, 1.3, 1.95], [0.8, 1.1, 2.75]];
+  const leafMats = [], caps = [];
+  L.forEach(([r, h, c]) => {
+    const mat = new THREE.MeshStandardMaterial({ roughness: 0.75, flatShading: true }); leafMats.push(mat);
+    const m = new THREE.Mesh(new THREE.ConeGeometry(r, h, 11), mat);
+    m.position.y = c; g.add(m);
+    const snow = new THREE.Mesh(new THREE.ConeGeometry(r * 0.32, h * 0.3, 11), new THREE.MeshStandardMaterial({ color: 0xf3f7ff, roughness: 0.9, flatShading: true }));
+    snow.position.y = c + h * 0.36; g.add(snow); caps.push(snow);
+  });
+  const surfR = y => Math.max(0, ...L.map(([r, h, c]) => (y >= c - h / 2 && y <= c + h / 2) ? r * (c + h / 2 - y) / h : 0));
+  const LOOK = {
+    natale:    { leaves: [0x1f7a4a, 0x23874f, 0x2a9658], ground: 0xf3f7ff, caps: true,  flake: 0xffffff, flakeSize: 0.05, fall: 1,   ring: false,
+                 cols: [0xd7263d, 0xf2c14e, 0x3a86ff, 0xdfe6f0, 0x9b5de5, 0xff7eb6], hemi: [0xcfe0ff, 0x0b1f3a] },
+    primavera: { leaves: [0x2e7d3f, 0x358c46, 0x3f9a4f], ground: 0x7cbf5e, caps: false, flake: 0xffb7d0, flakeSize: 0.07, fall: 0.5, ring: false,
+                 cols: [0xff6f91, 0xffffff, 0xffd23f, 0xff9f1c, 0xc77dff, 0xff4d6d], hemi: [0xdbeeff, 0x3d6b33] },
+    spazio:    { leaves: [0x2b4c7e, 0x35609b, 0x4174b5], ground: 0x8f8aa8, caps: false, flake: 0xfff6c9, flakeSize: 0.04, fall: 0.15, ring: true,
+                 cols: [0xff9f43, 0x48dbfb, 0xff6b6b, 0xfeca57, 0x1dd1a1, 0xc8a2ff], hemi: [0xb9b0ff, 0x140c2e] }
+  };
+  let look = LOOK.natale, GOAL = 25, slots = [];
+  const ballGeo = new THREE.SphereGeometry(1, 20, 14), capGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.35, 10), ringGeo = new THREE.TorusGeometry(1.55, 0.12, 8, 32);
+  const capMat = new THREE.MeshStandardMaterial({ color: 0xc9a227, metalness: 0.8, roughness: 0.3 });
+  let orns = [], star = null, t = 0, shakeT = 0, won = false;
+
+  const shape = new THREE.Shape();
+  for (let i = 0; i < 10; i++) { const r = i % 2 ? 0.1 : 0.25, a = Math.PI / 2 + i * Math.PI / 5; i ? shape.lineTo(Math.cos(a) * r, Math.sin(a) * r) : shape.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
+  const starGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.07, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 2 }); starGeo.center();
+
+  const SN = 450, pos = new Float32Array(SN * 3);
+  for (let i = 0; i < SN; i++) { pos[i * 3] = (Math.random() - 0.5) * 11; pos[i * 3 + 1] = Math.random() * 7; pos[i * 3 + 2] = (Math.random() - 0.5) * 8; }
+  const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const flakeMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.05, transparent: true, opacity: 0.85 });
+  scene.add(new THREE.Points(sg, flakeMat));
+
+  function configure(theme, goal) {
+    look = LOOK[theme] || LOOK.natale; GOAL = goal;
+    leafMats.forEach((m, i) => m.color.setHex(look.leaves[i]));
+    caps.forEach(c => c.visible = look.caps);
+    groundMat.color.setHex(look.ground);
+    flakeMat.color.setHex(look.flake); flakeMat.size = look.flakeSize;
+    hemi.color.setHex(look.hemi[0]); hemi.groundColor.setHex(look.hemi[1]);
+    const n = GOAL - 1, k = Math.min(1, Math.sqrt(24 / n));
+    slots = Array.from({ length: n }, (_, i) => {
+      const f = n > 1 ? i / (n - 1) : 0, y = 0.55 + f * 2.45, a = i * 2.399, r = surfR(y) + 0.06;
+      return { x: Math.cos(a) * r, y, z: Math.sin(a) * r, s: (0.13 - 0.045 * f) * k };
+    });
+    reset();
+  }
+  function add(k) {
+    if (k > GOAL) return;
+    if (k === GOAL) {
+      const mat = new THREE.MeshStandardMaterial({ color: 0xffd34d, emissive: 0xffb300, emissiveIntensity: 0.8, metalness: 0.5, roughness: 0.3, transparent: true });
+      star = new THREE.Mesh(starGeo, mat); star.position.y = 3.48; star.scale.setScalar(0.001); star.userData = { born: t, base: 1.25 };
+      g.add(star); orns.push(star); warm.intensity = 1.3; return;
+    }
+    const sl = slots[k - 1], col = look.cols[(k - 1) % look.cols.length];
+    const o = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color: col, metalness: look.ring ? 0.15 : 0.45, roughness: look.ring ? 0.55 : 0.22, emissive: col, emissiveIntensity: 0.12, transparent: true });
+    const mats = [mat];
+    o.add(new THREE.Mesh(ballGeo, mat));
+    if (look.caps) { const cap = new THREE.Mesh(capGeo, capMat); cap.position.y = 1.05; o.add(cap); }
+    if (look.ring && k % 3 === 0) { const rm = new THREE.MeshStandardMaterial({ color: 0xf5e6c8, transparent: true }); mats.push(rm); const ring = new THREE.Mesh(ringGeo, rm); ring.rotation.x = 1.2; o.add(ring); }
+    o.position.set(sl.x, sl.y, sl.z); o.scale.setScalar(0.001);
+    o.userData = { born: t, base: sl.s, mats }; g.add(o); orns.push(o);
+  }
+  function reset() { orns.forEach(o => g.remove(o)); orns = []; star = null; won = false; warm.intensity = 0; }
+  function shake() { shakeT = 0.5; }
+  function strip(cb) {
+    orns.forEach(o => {
+      const d = Math.hypot(o.position.x, o.position.z) || 1;
+      o.userData.fall = { vx: o.position.x / d * (0.6 + Math.random() * 0.8), vz: o.position.z / d * (0.6 + Math.random() * 0.8), vy: 0.8 + Math.random() * 1.2, start: t };
+    });
+    warm.intensity = 0; setTimeout(cb, 2300);
+  }
+  function win() { won = true; }
+
+  const back = x => { const c = 1.9; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt;
+    g.rotation.y += dt * (won ? 0.9 : 0.45);
+    if (shakeT > 0) { shakeT -= dt; g.position.x = Math.sin(t * 45) * 0.07 * (shakeT / 0.5); } else g.position.x = 0;
+    for (let i = orns.length - 1; i >= 0; i--) {
+      const o = orns[i], u = o.userData;
+      if (u.fall) {
+        const f = u.fall; f.vy -= 7 * dt;
+        o.position.x += f.vx * dt; o.position.z += f.vz * dt; o.position.y += f.vy * dt;
+        const floor = u.base * 0.9 + 0.02;
+        if (o.position.y < floor) { o.position.y = floor; f.vy = -f.vy * 0.35; f.vx *= 0.6; f.vz *= 0.6; }
+        const age = t - f.start;
+        if (age > 1.2) { const op = Math.max(0, 1 - (age - 1.2) / 0.9); (u.mats || [o.material]).forEach(m => m.opacity = op); }
+        if (age > 2.2) { g.remove(o); orns.splice(i, 1); }
+        continue;
+      }
+      const p = Math.min(1, (t - u.born) / 0.55);
+      o.scale.setScalar(Math.max(0.001, u.base * back(p)));
+      if (won && u.mats) u.mats[0].emissiveIntensity = 0.12 + 0.35 * (0.5 + 0.5 * Math.sin(t * 4 + i));
+    }
+    if (star && !star.userData.fall) { star.material.emissiveIntensity = 0.7 + 0.3 * Math.sin(t * 3); star.rotation.y = -g.rotation.y; }
+    const pa = sg.attributes.position.array, sp = look.fall;
+    for (let i = 0; i < SN; i++) { pa[i * 3 + 1] -= dt * (0.35 + (i % 5) * 0.08) * sp; pa[i * 3] += Math.sin(t + i) * dt * 0.08; if (pa[i * 3 + 1] < 0) pa[i * 3 + 1] = 7; }
+    sg.attributes.position.needsUpdate = true;
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+  const ro = new ResizeObserver(() => {
+    const w = fig.clientWidth, h = fig.clientHeight; if (!w || !h) return;
+    renderer.setSize(w, h, false); camera.aspect = w / h;
+    camera.position.z = w / h < 0.8 ? 10.5 : 8; camera.updateProjectionMatrix();
+  });
+  ro.observe(fig);
+  requestAnimationFrame(frame);
+  return { configure, reset, add, shake, strip, win };
+})();
+
+/* ---------- Gioco ---------- */
+let S = null, deck = [], cur = null, ok = 0, err = 0, n = 0, over = false, missed = [];
+function setTitle(text) {
+  const h = $('title'); h.textContent = '';
+  const m = text.trim().match(/^(.*?)(\S+)$/);
+  if (!m) { h.textContent = text; return; }
+  const sp = document.createElement('span'); sp.textContent = m[2];
+  h.append(m[1], sp);
+  document.title = text.trim() || "L'albero delle domande";
+}
+function hud() {
+  $('cnt').textContent = `${ok} / ${S.goal}`;
+  $('bar').style.width = (ok / S.goal * 100) + '%';
+  $('ecnt').textContent = S.maxErr ? `${err} / ${S.maxErr}` : String(err);
+  [...$('lives').children].forEach((s, i) => s.classList.toggle('x', i < err));
+}
+function buildOptions(x) {
+  let o = [{ txt: x.good, good: true }, ...x.wrong.map(w => ({ txt: w, good: false }))];
+  const low = o.map(v => v.txt.toLowerCase());
+  const pair = o.length === 2 && FIXED_PAIRS.find(p => p.every(w => low.includes(w)));
+  if (pair) return pair.map(w => o[low.indexOf(w)]);
+  return S.shuf ? shuffle(o) : o;
+}
+function refill() { deck = S.order === 'seq' ? S.qs.slice().reverse() : shuffle(S.qs.slice()); }
+function next() {
+  if (!S.qs.length) {
+    $('tag').textContent = 'Nessuna domanda';
+    $('q').textContent = 'Questa raccolta è vuota.';
+    $('opts').innerHTML = '<p class="empty">Apri il pannello insegnante e aggiungi qualche domanda nella scheda «Domande».</p>';
+    $('fb').textContent = ''; $('next').hidden = true; return;
+  }
+  if (!deck.length) refill();
+  cur = deck.pop(); n++;
+  $('tag').textContent = `Domanda ${n}`;
+  $('q').textContent = cur.q;
+  const box = $('opts'); box.innerHTML = '';
+  buildOptions(cur).forEach((op, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.dataset.good = op.good ? '1' : '';
+    if (S.keys && i < 9) { const k = document.createElement('kbd'); k.textContent = i + 1; b.append(k); }
+    b.append(op.txt);
+    b.addEventListener('click', () => answer(b));
+    box.appendChild(b);
+  });
+  $('fb').textContent = ''; $('fb').className = 'fb'; $('next').hidden = true;
+}
+function answer(b) {
+  if (over || b.disabled) return;
+  const btns = [...$('opts').children]; btns.forEach(x => x.disabled = true);
+  const good = b.dataset.good === '1';
+  btns.forEach(x => { if (x.dataset.good) x.classList.add('ok'); });
+  const fb = $('fb'); fb.innerHTML = '';
+  const s = document.createElement('strong');
+  if (good) {
+    ok++; tree.add(ok); s.textContent = ok === S.goal ? 'Giusto! Ecco la stella! ' : 'Giusto! '; fb.className = 'fb good';
+  } else {
+    err++; b.classList.add('no'); tree.shake(); fb.className = 'fb bad';
+    s.textContent = cur.e ? 'Non proprio. ' : `Non proprio. La risposta giusta è «${cur.good}». `;
+    if (!missed.includes(cur)) missed.push(cur);
+    $('card').classList.remove('shake'); void $('card').offsetWidth; $('card').classList.add('shake');
+  }
+  fb.append(s, cur.e || ''); hud();
+  const th = THEMES[S.theme];
+  if (ok >= S.goal) {
+    over = true; tree.win();
+    const tail = err ? `Hai fatto ${err} ${err === 1 ? 'errore' : 'errori'} su ${n} domande.` : 'Senza nemmeno un errore: fantastico!';
+    setTimeout(() => show(th.win, `Hai risposto bene a ${S.goal} domande e la stella è in cima. ${tail}`), 1800); return;
+  }
+  if (S.maxErr && err >= S.maxErr) {
+    over = true;
+    tree.strip(() => show('Game over', `Hai sbagliato ${S.maxErr} domande e ${th.lose}. Avevi raggiunto ${ok} su ${S.goal}: riprova, puoi farcela!`)); return;
+  }
+  $('next').hidden = false; $('next').focus();
+}
+function show(title, text) {
+  $('ovTitle').textContent = title; $('ovText').textContent = text;
+  const rl = $('revList'); rl.innerHTML = '';
+  missed.forEach(x => {
+    const li = document.createElement('li'), b = document.createElement('b');
+    b.textContent = x.good; li.append(x.q, ' → ', b);
+    if (x.e) li.append(' (' + x.e + ')');
+    rl.appendChild(li);
+  });
+  $('review').hidden = !missed.length;
+  $('over').hidden = false; $('again').focus();
+}
+function start() {
+  S = active();
+  document.body.dataset.tema = S.theme;
+  setTitle(S.title || "L'albero delle domande");
+  $('subtitle').textContent = S.sub || '';
+  $('cntLabel').textContent = THEMES[S.theme].label;
+  $('errMeter').querySelector('b').firstChild.textContent = S.maxErr ? 'Errori ' : 'Errori (senza limite) ';
+  $('lives').innerHTML = Array.from({ length: S.maxErr }, () => '<span></span>').join('');
+  $('lives').hidden = !S.maxErr;
+  tree.configure(S.theme, S.goal);
+  refill(); ok = 0; err = 0; n = 0; over = false; missed = []; $('over').hidden = true; hud(); next();
+}
+$('next').addEventListener('click', next);
+$('again').addEventListener('click', start);
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+  if (/^[1-9]$/.test(e.key)) { const b = $('opts').children[+e.key - 1]; if (b && b.tagName === 'BUTTON' && !b.disabled) { e.preventDefault(); b.click(); } }
+});
+
+/* ---------- Pannello insegnante ---------- */
+function status(msg, kind) { const el = $('tStat'); el.textContent = msg; el.className = 'tstat' + (kind ? ' ' + kind : ''); }
+function changed(restart = true) { save(); renderPanel(); if (restart) start(); }
+function toggle(open) { $('teacher').hidden = !open; $('tOpen').setAttribute('aria-expanded', open); if (open) { renderPanel(); status(''); } }
+$('tOpen').addEventListener('click', () => toggle($('teacher').hidden));
+$('tClose').addEventListener('click', () => { toggle(false); start(); $('card').scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+
+let tab = 'sets';
+document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => { tab = b.dataset.tab; status(''); renderPanel(); }));
+
+function btn(label, cls, fn) { const b = document.createElement('button'); b.type = 'button'; b.className = 'tsec sm ' + (cls || ''); b.textContent = label; b.addEventListener('click', fn); return b; }
+function renderPanel() {
+  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === tab));
+  ['sets', 'qs', 'opts', 'share'].forEach(k => $('p-' + k).hidden = k !== tab);
+  const A = active();
+  // Raccolte
+  const sl = $('setList'); sl.innerHTML = '';
+  db.sets.forEach(s => {
+    const li = document.createElement('li'); if (s.id === A.id) li.className = 'on';
+    const d = document.createElement('div'); d.className = 'grow';
+    const st = document.createElement('strong'); st.textContent = s.name;
+    const sm = document.createElement('small'); sm.textContent = `${s.qs.length} domande · obiettivo ${s.goal} · tema ${s.theme}${s.src ? ' · collegata a un foglio online' : ''}`;
+    d.append(st, sm); li.append(d);
+    if (s.id === A.id) { const p = document.createElement('span'); p.className = 'pill'; p.textContent = 'In uso'; li.append(p); }
+    else li.append(btn('Usa', '', () => { db.active = s.id; changed(); status(`Ora giochi con «${s.name}».`, 'good'); }));
+    li.append(btn('Modifica', '', () => { db.active = s.id; tab = 'qs'; changed(); }));
+    li.append(btn('Duplica', '', () => { const c = normSet(JSON.parse(JSON.stringify(s))); c.id = uid(); c.name = s.name + ' (copia)'; delete c.src; db.sets.push(c); changed(false); status('Raccolta duplicata.', 'good'); }));
+    li.append(btn('Elimina', 'danger', () => {
+      if (!confirm(`Eliminare la raccolta «${s.name}» con ${s.qs.length} domande?`)) return;
+      db.sets = db.sets.filter(x => x !== s); if (!db.sets.length) db.sets.push(demoSet());
+      if (db.active === s.id) db.active = db.sets[0].id;
+      changed(); status('Raccolta eliminata.', 'good');
+    }));
+    sl.appendChild(li);
+  });
+  // Domande
+  const warn = A.qs.length && A.qs.length < A.goal + Math.max(A.maxErr, 1) - 1 ? ' Sono meno di quelle che servono per una partita intera: alcune potranno ripetersi.' : '';
+  $('qInfo').textContent = `Raccolta «${A.name}»: ${A.qs.length} domande.${warn}`;
+  const ql = $('qList'); ql.innerHTML = '';
+  A.qs.forEach((x, i) => {
+    const li = document.createElement('li');
+    const nn = document.createElement('span'); nn.className = 'n'; nn.textContent = i + 1;
+    const d = document.createElement('div'); d.className = 'grow';
+    const st = document.createElement('strong'); st.textContent = x.q;
+    const an = document.createElement('span'); an.className = 'ans';
+    const b = document.createElement('b'); b.textContent = '✓ ' + x.good; an.append(b, '  ·  ✗ ' + x.wrong.join('  ·  ✗ '));
+    d.append(st, an); li.append(nn, d);
+    li.append(btn('↑', '', () => { if (i) { [A.qs[i - 1], A.qs[i]] = [A.qs[i], A.qs[i - 1]]; changed(); } }));
+    li.lastChild.setAttribute('aria-label', 'Sposta su');
+    li.append(btn('Modifica', '', () => openForm(i)));
+    li.append(btn('Elimina', 'danger', () => { A.qs.splice(i, 1); changed(); status('Domanda eliminata.', 'good'); }));
+    ql.appendChild(li);
+  });
+  // Impostazioni
+  if (!$('p-opts').contains(document.activeElement)) {
+    $('oName').value = A.name; $('oTitle').value = A.title; $('oSub').value = A.sub;
+    $('oGoal').value = A.goal; $('oErr').value = A.maxErr; $('oTheme').value = A.theme; $('oOrder').value = A.order;
+    $('oShuf').checked = A.shuf; $('oKeys').checked = A.keys;
+  }
+}
+
+/* Raccolte */
+function addSetFromCSV(text, name) {
+  const { out, bad } = csvToQs(text);
+  if (!out.length) { status(`In «${name}» non ho trovato domande valide. Ogni riga deve avere domanda, risposta giusta e almeno una risposta sbagliata.`, 'err'); return; }
+  const s = newSet({ name: name.replace(/\.(csv|tsv|txt)$/i, ''), title: "L'albero delle domande", qs: out });
+  db.sets.push(s); db.active = s.id; changed();
+  let msg = `Creata la raccolta «${s.name}» con ${out.length} domande. Nuova partita iniziata!`;
+  if (bad.length) msg += ` Ho saltato ${bad.length === 1 ? 'la riga' : 'le righe'} ${bad.join(', ')} perché incomplet${bad.length === 1 ? 'a' : 'e'}.`;
+  status(msg, 'good');
+}
+$('sNew').addEventListener('click', () => { const s = newSet(); db.sets.push(s); db.active = s.id; tab = 'opts'; changed(); status('Nuova raccolta creata: dagli un nome e un titolo, poi aggiungi le domande.', 'good'); $('oName').focus(); $('oName').select(); });
+$('sFile').addEventListener('change', ev => {
+  const file = ev.target.files && ev.target.files[0]; if (!file) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    const text = String(rd.result || '');
+    if (text.includes('�')) { const r2 = new FileReader(); r2.onload = () => addSetFromCSV(String(r2.result || ''), file.name); r2.readAsText(file, 'windows-1252'); return; }
+    addSetFromCSV(text, file.name);
+  };
+  rd.onerror = () => status('Non riesco a leggere questo file.', 'err');
+  rd.readAsText(file, 'utf-8');
+  ev.target.value = '';
+});
+$('sTpl').addEventListener('click', () => {
+  download('modello-domande.csv', qsToCSV([
+    { q: 'Quanto fa 7 × 8?', good: '56', wrong: ['54', '48', '64'], e: '7 × 8 = 56: prova a contare 8 per 7 volte.' },
+    { q: 'Vero o falso? Il Po è il fiume più lungo d\'Italia.', good: 'Vero', wrong: ['Falso'], e: 'Il Po è lungo circa 652 km.' },
+    { q: 'Qual è la capitale della Francia?', good: 'Parigi', wrong: ['Lione', 'Marsiglia'], e: '' }
+  ]));
+  status('Modello scaricato: aprilo con Excel o Fogli Google, scrivi le tue domande e salvalo come CSV.', 'good');
+});
+$('sDemo').addEventListener('click', () => {
+  const ex = db.sets.find(s => s.id === 'esempio');
+  if (ex) { ex.qs = demoSet().qs; db.active = ex.id; } else { const d = demoSet(); db.sets.unshift(d); db.active = d.id; }
+  changed(); status('Raccolta di esempio ripristinata e in uso.', 'good');
+});
+
+/* Domande */
+let editing = -1;
+function openForm(i) {
+  const A = active(); editing = i; const x = i >= 0 ? A.qs[i] : { q: '', good: '', wrong: [], e: '' };
+  $('fQ').value = x.q; $('fGood').value = x.good; $('fWrong').value = x.wrong.join('\n'); $('fE').value = x.e || '';
+  $('fSave').textContent = i >= 0 ? 'Salva modifiche' : 'Aggiungi domanda';
+  $('bulk').hidden = true; $('qForm').hidden = false; $('fQ').focus();
+}
+$('qAdd').addEventListener('click', () => openForm(-1));
+$('fCancel').addEventListener('click', () => { $('qForm').hidden = true; });
+$('qForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const x = { q: $('fQ').value.trim(), good: $('fGood').value.trim(), wrong: $('fWrong').value.split('\n').map(s => s.trim()).filter(Boolean), e: $('fE').value.trim() };
+  if (!x.q || !x.good || !x.wrong.length) { status('Servono la domanda, la risposta giusta e almeno una risposta sbagliata.', 'err'); return; }
+  if (x.wrong.some(w => w.toLowerCase() === x.good.toLowerCase())) { status('Una risposta sbagliata è uguale a quella giusta: correggila.', 'err'); return; }
+  const A = active();
+  if (editing >= 0) A.qs[editing] = x; else A.qs.push(x);
+  const wasNew = editing < 0;
+  changed();
+  if (wasNew) { status(`Domanda aggiunta (${A.qs.length} in tutto). Puoi scriverne subito un'altra.`, 'good'); openForm(-1); }
+  else { $('qForm').hidden = true; status('Domanda salvata.', 'good'); }
+});
+$('qBulk').addEventListener('click', () => { $('qForm').hidden = true; $('bulkTxt').value = qsToCSV(active().qs); $('bulk').hidden = false; $('bulkTxt').focus(); });
+$('bCancel').addEventListener('click', () => { $('bulk').hidden = true; });
+function bulk(replace) {
+  const { out, bad } = csvToQs($('bulkTxt').value);
+  if (!out.length && !replace) { status('Non ho trovato domande valide nel testo.', 'err'); return; }
+  if (!out.length && !confirm('Il testo non contiene domande valide: svuotare la raccolta?')) return;
+  const A = active(); A.qs = replace ? out : A.qs.concat(out);
+  $('bulk').hidden = true; changed();
+  status(`Ora la raccolta ha ${A.qs.length} domande.` + (bad.length ? ` Righe saltate perché incomplete: ${bad.join(', ')}.` : ''), bad.length ? 'err' : 'good');
+}
+$('bApply').addEventListener('click', () => bulk(true));
+$('bAppend').addEventListener('click', () => bulk(false));
+$('qExport').addEventListener('click', () => { const A = active(); download(slug(A.name) + '.csv', qsToCSV(A.qs)); });
+
+/* Impostazioni */
+$('p-opts').addEventListener('submit', e => e.preventDefault());
+$('p-opts').addEventListener('change', () => {
+  const A = active();
+  A.name = $('oName').value.trim() || 'Senza nome';
+  A.title = $('oTitle').value.trim(); A.sub = $('oSub').value.trim();
+  A.goal = clamp($('oGoal').value, 5, 50, 25); A.maxErr = clamp($('oErr').value, 0, 15, 5);
+  A.theme = $('oTheme').value; A.order = $('oOrder').value;
+  A.shuf = $('oShuf').checked; A.keys = $('oKeys').checked;
+  $('oGoal').value = A.goal; $('oErr').value = A.maxErr;
+  changed(); status('Impostazioni salvate.', 'good');
+});
+
+/* Condividi */
+const b64u = bytes => { let s = ''; bytes.forEach(b => s += String.fromCharCode(b)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+const unb64u = str => Uint8Array.from(atob(str.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+async function pipe(bytes, stream) { return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer()); }
+async function encodeSet(s, lock) {
+  const data = { v: 2, id: s.id, name: s.name, title: s.title, sub: s.sub, goal: s.goal, maxErr: s.maxErr, theme: s.theme, order: s.order, shuf: s.shuf, keys: s.keys, lock: lock ? 1 : 0, qs: s.qs.map(x => [x.q, x.good, x.wrong, x.e || '']) };
+  const raw = new TextEncoder().encode(JSON.stringify(data));
+  if (window.CompressionStream) { try { return 'z' + b64u(await pipe(raw, new CompressionStream('deflate-raw'))); } catch (e) {} }
+  return 'j' + b64u(raw);
+}
+async function decodeSet(str) {
+  let raw = unb64u(str.slice(1));
+  if (str[0] === 'z') raw = await pipe(raw, new DecompressionStream('deflate-raw'));
+  const d = JSON.parse(new TextDecoder().decode(raw));
+  d.qs = (d.qs || []).map(r => ({ q: r[0], good: r[1], wrong: r[2] || [], e: r[3] || '' }));
+  return d;
+}
+const baseURL = () => location.href.split('#')[0].split('?')[0];
+$('shMake').addEventListener('click', async () => {
+  const A = active();
+  if (!A.qs.length) { status('La raccolta in uso è vuota: aggiungi prima qualche domanda.', 'err'); return; }
+  if (A.src) {
+    const u = new URL(baseURL()); u.searchParams.set('csv', A.src); u.searchParams.set('nome', A.name); if ($('shLock').checked) u.searchParams.set('studente', '1');
+    $('shUrl').value = u.href;
+  } else {
+    $('shUrl').value = baseURL() + '#r=' + await encodeSet(A, $('shLock').checked);
+  }
+  $('shCopy').disabled = false;
+  $('shInfo').textContent = `Link per «${A.name}» (${A.qs.length} domande, ${$('shUrl').value.length} caratteri). Se cambi le domande, crea un nuovo link.`;
+  $('shUrl').select(); status('Link pronto: copialo e mandalo alla classe.', 'good');
+});
+$('shCopy').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText($('shUrl').value); status('Link copiato!', 'good'); }
+  catch (e) { $('shUrl').select(); status('Non riesco a copiare da solo: seleziona il link e copialo con Ctrl+C.', 'err'); }
+});
+$('shCsvMake').addEventListener('click', async () => {
+  const src = $('shCsv').value.trim();
+  if (!/^https?:\/\//i.test(src)) { status('Incolla un indirizzo che inizi con https://', 'err'); return; }
+  status('Provo a leggere il foglio…');
+  const s = await loadRemote(src, active().name);
+  if (!s) return;
+  const u = new URL(baseURL()); u.searchParams.set('csv', src); u.searchParams.set('nome', s.name); if ($('shLock').checked) u.searchParams.set('studente', '1');
+  $('shUrl').value = u.href; $('shCopy').disabled = false;
+  $('shInfo').textContent = `Link al foglio (${s.qs.length} domande ora). Quando modifichi il foglio, il link mostra le nuove domande.`;
+  status(`Foglio letto: ${s.qs.length} domande. La raccolta «${s.name}» è ora in uso.`, 'good');
+});
+async function loadRemote(src, name) {
+  try {
+    const r = await fetch(src, { cache: 'no-store' }); if (!r.ok) throw new Error(r.status);
+    const { out } = csvToQs(await r.text());
+    if (!out.length) { status('Il foglio non contiene domande valide (servono domanda, risposta giusta e almeno una sbagliata).', 'err'); return null; }
+    let s = db.sets.find(x => x.src === src);
+    if (s) s.qs = out; else { s = newSet({ name: name || 'Foglio online', src, qs: out }); db.sets.push(s); }
+    db.active = s.id; changed();
+    return s;
+  } catch (e) {
+    status('Non riesco a leggere il foglio: controlla che sia pubblicato sul web in formato CSV.', 'err');
+    const s = db.sets.find(x => x.src === src); // si gioca con l'ultima copia salvata
+    if (s) { db.active = s.id; changed(); return s; }
+    return null;
+  }
+}
+
+/* ---------- Avvio: link condivisi ---------- */
+async function boot() {
+  const qp = new URLSearchParams(location.search), hash = location.hash.match(/^#r=([zj][\w-]+)/);
+  try {
+    if (hash) {
+      const d = await decodeSet(hash[1]);
+      const s = normSet(Object.assign({}, d, { id: 'link-' + d.id })); delete s.v; delete s.lock;
+      const i = db.sets.findIndex(x => x.id === s.id);
+      if (i >= 0) db.sets[i] = s; else db.sets.push(s);
+      db.active = s.id; save(); locked = !!d.lock;
+    } else if (qp.get('csv')) {
+      locked = qp.get('studente') === '1';
+      await loadRemote(qp.get('csv'), qp.get('nome') || 'Foglio online');
+    }
+  } catch (e) { console.warn('Link non valido', e); }
+  $('tOpen').hidden = locked;
+  start();
+}
+boot();
+}
+</script>
+</body>
+</html>
